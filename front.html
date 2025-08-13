@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Backend Test</title>
+</head>
+<body>
+  <h1>Check Backend Status</h1>
+  <button id="checkBtn">Check</button>
+  <p id="result"></p>
+
+  <script>
+    const API_URL = "https://mindful-freedom-production.up.railway.app/"; // public backend URL
+
+    document.getElementById("checkBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch(`${API_URL}/health`);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
+        document.getElementById("result").innerText = "Status: " + data.status;
+      } catch (err) {
+        document.getElementById("result").innerText = "Error: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
