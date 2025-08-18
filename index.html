@@ -107,32 +107,46 @@
       }
     });
 
-    authForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const payload = {
-        name: nameField.value,
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value,
-      };
+   authForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-      try {
-        const endpoint = isLogin ? "/login" : "/signup";
-        const res = await fetch(`${API_BASE}${endpoint}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+  let payload;
+  let endpoint;
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Request failed");
+  if (isLogin) {
+    // ✅ Login only needs email + password
+    endpoint = "/login";
+    payload = {
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+    };
+  } else {
+    // ✅ Signup needs name + email + password
+    endpoint = "/signup";
+    payload = {
+      name: nameField.value,
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+    };
+  }
 
-        message.textContent = data.message || "Success!";
-        message.style.color = "green";
-      } catch (err) {
-        message.textContent = err.message;
-        message.style.color = "red";
-      }
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Request failed");
+
+    message.textContent = data.message || "Success!";
+    message.style.color = "green";
+  } catch (err) {
+    message.textContent = err.message;
+    message.style.color = "red";
+  }
+});
 
     // Google Sign-In
     function handleGoogleResponse(response) {
@@ -180,5 +194,6 @@
 
 </body>
 </html>
+
 
 
