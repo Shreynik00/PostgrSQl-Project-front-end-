@@ -3,26 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PostgreSQL Project Frontend</title>
+  <title>User Auth</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     body {
       font-family: "Segoe UI", Arial, sans-serif;
+      background: #f4f6f8;
       margin: 0;
       padding: 20px;
-      background: #f4f6f8;
       color: #333;
     }
-
     h1 {
       text-align: center;
       margin-bottom: 20px;
       color: #2c3e50;
     }
-
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
     button {
-      display: block;
-      margin: 0 auto 20px auto;
-      padding: 10px 20px;
+      width: 100%;
+      padding: 10px;
       background: #3498db;
       border: none;
       color: white;
@@ -30,84 +43,139 @@
       border-radius: 5px;
       cursor: pointer;
       transition: background 0.3s ease;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }
-
     button:hover {
       background: #2980b9;
     }
-
-    table {
-      border-collapse: collapse;
-      width: 90%;
-      margin: 0 auto;
-      background: white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border-radius: 6px;
-      overflow: hidden;
+    .toggle {
+      text-align: center;
+      margin-top: 10px;
     }
-
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
+    .google-btn {
+      margin-top: 15px;
+      display: flex;
+      justify-content: center;
     }
-
-    th {
-      background: #3498db;
-      color: white;
-    }
-
-    tr:hover {
-      background-color: #f1f1f1;
-    }
-
-    @media (max-width: 600px) {
-      table, th, td {
-        font-size: 14px;
-      }
+    #message {
+      text-align: center;
+      margin-top: 15px;
+      color: green;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
 
-  <h1>PostgreSQL Users</h1>
-  <button id="loadUsers">Show Users</button>
-
-  <table id="usersTable" style="display: none;">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Email</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <h1>User Authentication</h1>
+  <div class="container">
+    <form id="authForm">
+      <input type="text" id="name" placeholder="Full Name" style="display:none;" />
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <button type="submit" id="submitBtn">Login</button>
+    </form>
+    <div class="toggle">
+      <a href="#" id="toggleForm">Don't have an account? Sign up</a>
+    </div>
+    <div class="google-btn">
+      <div id="googleSignIn"></div>
+    </div>
+    <p id="message"></p>
+  </div>
 
   <script>
     const API_BASE = "https://mindful-freedom-production.up.railway.app";
+    let isLogin = true;
 
-    document.getElementById("loadUsers").addEventListener("click", async () => {
-      try {
-        const res = await fetch(`${API_BASE}/users`);
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-        const users = await res.json();
+    const authForm = document.getElementById("authForm");
+    const nameField = document.getElementById("name");
+    const submitBtn = document.getElementById("submitBtn");
+    const toggleForm = document.getElementById("toggleForm");
+    const message = document.getElementById("message");
 
-        const tbody = document.querySelector("#usersTable tbody");
-        tbody.innerHTML = ""; // Clear previous rows
-
-        users.forEach(user => {
-          const row = document.createElement("tr");
-          row.innerHTML = `<td>${user.id}</td><td>${user.name}</td><td>${user.email}</td>`;
-          tbody.appendChild(row);
-        });
-
-        document.getElementById("usersTable").style.display = "table";
-      } catch (err) {
-        alert("Error fetching users: " + err.message);
+    toggleForm.addEventListener("click", (e) => {
+      e.preventDefault();
+      isLogin = !isLogin;
+      if (isLogin) {
+        nameField.style.display = "none";
+        submitBtn.textContent = "Login";
+        toggleForm.textContent = "Don't have an account? Sign up";
+      } else {
+        nameField.style.display = "block";
+        submitBtn.textContent = "Sign Up";
+        toggleForm.textContent = "Already have an account? Login";
       }
     });
+
+    authForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        name: nameField.value,
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value,
+      };
+
+      try {
+        const endpoint = isLogin ? "/login" : "/signup";
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Request failed");
+
+        message.textContent = data.message || "Success!";
+        message.style.color = "green";
+      } catch (err) {
+        message.textContent = err.message;
+        message.style.color = "red";
+      }
+    });
+
+    // Google Sign-In
+    function handleGoogleResponse(response) {
+      const payload = parseJwt(response.credential);
+      fetch(`${API_BASE}/google-auth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: payload.email,
+          name: payload.name,
+          googleId: payload.sub,
+        }),
+      })
+      .then(res => res.json())
+      .then(data => {
+        message.textContent = data.message || "Google login success!";
+        message.style.color = "green";
+      })
+      .catch(err => {
+        message.textContent = "Google login failed";
+        message.style.color = "red";
+      });
+    }
+
+    function parseJwt(token) {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    }
+
+    window.onload = function () {
+      google.accounts.id.initialize({
+        client_id: "YOUR_GOOGLE_CLIENT_ID",
+        callback: handleGoogleResponse,
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("googleSignIn"),
+        { theme: "outline", size: "large" }
+      );
+    };
   </script>
 
 </body>
